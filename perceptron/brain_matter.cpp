@@ -12,31 +12,34 @@ namespace cb{
         is_transposed = !is_transposed;  // if is_transposed was true, now it is false and vice versa
     }
 
-    std::ostream &operator<<(std::ostream &os, const Matrix &self) {                // DEFINING OPERATOR ( << ) for cb::Vector
-        if (self.matrix_.empty()){                                                  // if the cb::Vector contains no elements
-            os << "[]";                                                             // print empty square brackets: "[]"
+    std::ostream &operator<<(std::ostream &os, const Matrix &self) {                                                     // DEFINING OPERATOR ( << ) for cb::Vector
+        if (self.matrix_.empty()){                                                                                       // if the cb::Vector contains no elements
+            os << "[]";                                                                                                  // print empty square brackets: "[]"
         }
-        else {                                                                      // otherwise
-            os << '[';
+        else {                                                                                                           // otherwise
             for (auto vec: self.matrix_) {
-                os << '[';                                                              // print the opening bracket
+                os << '[';                                                                                               // print the opening bracket
 
                 for (auto beg = vec.begin(), end = vec.end(); beg + 1 != end; ++beg) {
                     os << *beg
-                       << ", ";                                                 // print the first n-1 elements seperated by ", "
+                       << ", ";                                                                                          // print the first n-1 elements seperated by ", "
                 }
-                os << *(vec.end() - 1)
-                   << "]]";                                 // print the nth element followed by the closing bracket
+                os << *(vec.end() - 1) << ']' << '\n';                                                                   // print the nth element followed by the closing bracket
             }
-            if (self.is_transposed)                                                     // if the vector is transposed
-                os
-                        << ".T";                                                             // print ".T" immediately after the closing bracket
+            if (self.is_transposed)                                                                                      // if the vector is transposed
+                os << "TRANSPOSED";                                                                                      // print ".T" immediately after the closing bracket
         }
         return os;
     }
 
-    std::ostream &operator<<(std::ostream &os, const float &self){
-        return os << &self;
+    std::ostream &operator<<(std::ostream &os, const std::variant<float, Matrix> &self){
+        if (typeid(self) == typeid(float)){
+            return os << std::get<float>(self);
+        }
+        else {
+            auto mat = std::get<Matrix>(self);
+            return os << mat;
+        }
     }
 
     void Vector::transpose() {
@@ -65,7 +68,7 @@ namespace cb{
             for (auto beg = self.vector_.begin(), end = self.vector_.end(); beg + 1 != end; ++beg) {
                 os << *beg << ", ";                                                 // print the first n-1 elements seperated by ", "
             }
-            os << *(self.vector_.end() - 1) << ']';                                 // print the nth element followed by the closing bracket
+            os << self.vector_.back() << ']';                                 // print the nth element followed by the closing bracket
         }
         if (self.is_transposed)                                                     // if the vector is transposed
             os << ".T";                                                             // print ".T" immediately after the closing bracket
@@ -113,7 +116,6 @@ namespace cb{
             for (size_t i = 0; i < num_elements; ++i){
                 result += ((*this).vector_[i] * other.vector_[i]);
             }
-            std::cout << result << "\n";
             other.transpose();
             return result;
         }
@@ -127,12 +129,6 @@ namespace cb{
                     ++j;
                 }
                 ++i;
-            }
-            for (auto i : result){
-                for (auto j : i){
-                    std::cout << j << ' ';
-                }
-                std::cout << '\n';
             }
             (*this).transpose();
             return Matrix(result);
