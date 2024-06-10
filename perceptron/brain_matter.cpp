@@ -1,143 +1,200 @@
-//
-// Created by keenan on 5/29/24.
-//
-#include "brain_matter.h"
+#include <vector>
 #include <stdexcept>
-#include <variant>
+#include "brain_matter.h"
 
 
-namespace cb{
+using namespace cb;
 
-    void Matrix::transpose(){
-        is_transposed = !is_transposed;  // if is_transposed was true, now it is false and vice versa
-    }
+// ------------------------------------------COMPUTER BRAIN MATRIX------------------------------------------------------
 
-    std::ostream &operator<<(std::ostream &os, const Matrix &self) {                                                     // DEFINING OPERATOR ( << ) for cb::Vector
-        if (self.matrix_.empty()){                                                                                       // if the cb::Vector contains no elements
-            os << "[]";                                                                                                  // print empty square brackets: "[]"
-        }
-        else {                                                                                                           // otherwise
-            for (auto vec: self.matrix_) {
-                os << '[';                                                                                               // print the opening bracket
+// Matrix Class Operators
+std::vector<double>& Matrix::operator[](size_t index){
+    /* when using cb::Matrix, we want it to feel like we are interacting with std::vector<std::vector<double>>, thus
+     * indexing the cb::Matrix indexes its representation which is a std::vector<std::vector<double>>. notice that the
+     * object being returned is the actual row of the matrix. */
+    return (*this).matrix_[index];
+}
+Matrix& Matrix::operator= (const Matrix& rhs){
+    /* when we assign one cb::Matrix to another cb::Matrix, we are essentially doing a deep copy we make sure to copy
+     * both the representation of the right-hand-side and the orientation of that cb::Matrix. Some may complain that
+     * this is slow. I want linear algebra with these matrices to work as if you were writing the equations on paper.*/
+    matrix_ = rhs.matrix_;
+    (*this).is_transposed = rhs.is_transposed;
+    return *this;
+}
 
-                for (auto beg = vec.begin(), end = vec.end(); beg + 1 != end; ++beg) {
-                    os << *beg
-                       << ", ";                                                                                          // print the first n-1 elements seperated by ", "
+Matrix Matrix::operator+ (Matrix& rhs) {
+    /* when adding two matrices, they must have the same shape. Therefore, we check the shape, and if they are the same,
+     * then we add the matrices elementwise. We also check the orientations of each matrix before adding. This insures
+     * that we are adding the matrices in the way that the user intended.*/
+
+    if (is_transposed){
+        if (rhs.is_transposed and rows() == rhs.rows() and columns() == rhs.columns()){
+            /* both matrices are transposed and are the same size */
+            size_t num_rows = columns(), num_cols = rhs.rows();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[j][i] + rhs[j][i];
                 }
-                os << *(vec.end() - 1) << ']' << '\n';                                                                   // print the nth element followed by the closing bracket
             }
-            if (self.is_transposed)                                                                                      // if the vector is transposed
-                os << "TRANSPOSED";                                                                                      // print ".T" immediately after the closing bracket
+            (*this).transpose(); rhs.transpose();  // return matrices back to their regular state (not transposed)
+            return Matrix(result);
         }
-        return os;
-    }
-
-    std::ostream &operator<<(std::ostream &os, const std::variant<float, Matrix> &self){
-        if (typeid(self) == typeid(float)){
-            return os << std::get<float>(self);
+        else if(not rhs.is_transposed and columns() == rhs.rows() and rows() == rhs.columns()){
+            /* lhs (this) matrix is transposed and rhs is not transposed, in this orientation they are the same size */
+            size_t num_rows = columns(), num_cols = rows();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[j][i] + rhs[i][j];
+                }
+            }
+            (*this).transpose();  // return matrix back to its regular state (not transposed)
+            return Matrix(result);
         }
         else {
-            auto mat = std::get<Matrix>(self);
-            return os << mat;
+            throw std::invalid_argument("The matrices you are attempting to add do not have the same size. Or they have"
+                                        " been passed in an incompatible orientation.");
         }
     }
-
-    void Vector::transpose() {
-        is_transposed = !is_transposed;  // if is_transposed was true, now it is false and vice versa
-    }
-
-    Vector Vector::T(){
-        is_transposed = !is_transposed;  // if is_transposed was true, now it is false and vice versa
-        return *this;                    // return the vector in its new state
-    }
-
-    int Vector::len() {                                                             // defining len for cb::Vector
-        int count = 0;                                                              // define a variable to keep count
-        for(auto element : Vector::vector_){                                  // iterate through the elements
-            count++;                                                                // increment the count for each iteration
-        }
-        return count;                                                               // return the count
-    }
-
-    std::ostream &operator<<(std::ostream &os, const Vector &self) {                // DEFINING OPERATOR ( << ) for cb::Vector
-        if (self.vector_.empty()){                                                  // if the cb::Vector contains no elements
-            os << "[]";                                                             // print empty square brackets: "[]"
-        }
-        else {                                                                      // otherwise
-            os << '[';                                                              // print the opening bracket
-            for (auto beg = self.vector_.begin(), end = self.vector_.end(); beg + 1 != end; ++beg) {
-                os << *beg << ", ";                                                 // print the first n-1 elements seperated by ", "
-            }
-            os << self.vector_.back() << ']';                                 // print the nth element followed by the closing bracket
-        }
-        if (self.is_transposed)                                                     // if the vector is transposed
-            os << ".T";                                                             // print ".T" immediately after the closing bracket
-        return os;
-    }
-
-    Vector Vector::operator+ (Vector& other){                                       // DEFINING OPERATOR ( + ) for cb::Vector
-        int num_elements = (*this).len();                                           // getting the number of elements in the cb::Vector on lhs of ( + )
-        std::vector<float> result(num_elements, 0.0);                       // creating a vector of zeros, of the same length, for the result
-        if (other.is_transposed == (*this).is_transposed && other.len() == num_elements){  // if the cb::Vectors are the same length and orientation, then
-            for (size_t i = 0; i < num_elements; ++i){                               // we iterate through the vectors
-                result[i] = (*this).vector_[i] + other.vector_[i];                   // adding them elementwise and storing the result to our result cb::Vector
-            }
-        }
-        else{                                                                        // if the cb::Vectors are of different lengths, or orientations, then
-            throw std::invalid_argument(                                             // we throw an error which will terminate the program and notify us
-                    "Vectors are not the same length or "                            // with this error message
-                    "Vectors are in different orientations"
-                    );
-        }
-        return Vector{result};                                                  // return the result of our addition
-    }
-
-    Vector Vector::operator- (Vector& other){                                       // DEFINING OPERATOR ( - ) for cb::Vector
-        int num_elements = (*this).len();                                           // getting the number of elements in the cb::Vector on lhs of ( - )
-        std::vector<float> result(num_elements, 0.0);                       // creating a vector of zeros, of the same length, for the result
-        if (other.is_transposed == (*this).is_transposed && other.len() == num_elements){  // if the cb::Vectors are the same length and orientation, then
-            for (size_t i = 0; i < num_elements; ++i){                               // we iterate through the vectors
-                result[i] = (*this).vector_[i] - other.vector_[i];                   // subtracting elementwise and storing the result to our result cb::Vector
-            }
-        }
-        else{                                                                        // if the cb::Vectors are of different lengths, or orientations, then
-            throw std::invalid_argument(                                             // we throw an error which will terminate the program and notify us
-                    "Vectors are not the same length or "                            // with this error message
-                    "Vectors are in different orientation."
-            );
-        }
-        return Vector{result};                                                   // return the result of our subtraction
-    }
-
-    std::variant<float, Matrix> Vector::operator*(Vector other){
-        int num_elements = (*this).len();
-        if (!(*this).is_transposed && other.is_transposed && num_elements == other.len()){
-            float result{0.0};
-            for (size_t i = 0; i < num_elements; ++i){
-                result += ((*this).vector_[i] * other.vector_[i]);
-            }
-            other.transpose();
-            return result;
-        }
-        else if((*this).is_transposed && !other.is_transposed){
-            std::vector<std::vector<float>> result((*this).len(), std::vector<float>(other.len(), 0.0));
-            size_t i = 0, j;
-            for (auto s : other.vector_){
-                j = 0;
-                for (auto r : (*this).vector_){
-                    result[i][j] = s * r;
-                    ++j;
+    else{
+        if (not rhs.is_transposed and rows() == rhs.rows() and columns() == rhs.columns()){
+            /* both matrices are not transposed and are the same size */
+            size_t num_rows = rows(), num_cols = columns();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[i][j] + rhs[i][j];
                 }
-                ++i;
             }
-            (*this).transpose();
+            return Matrix(result);
+        }
+        else if(rhs.is_transposed and rows() == rhs.columns() and columns() == rhs.rows()){
+            /* the rhs matrix is transposed and the matrices have the same size when in this orientation */
+            size_t num_rows = rows(), num_cols = columns();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[i][j] + rhs[j][i];
+                }
+            }
+            rhs.transpose();  // return the rhs to its regular state (not transposed)
             return Matrix(result);
         }
         else{
-            throw std::invalid_argument(
-                    "Vectors are not same length (dot product only) or "
-                    "Vectors are in the same orientation."
-            );
+            throw std::invalid_argument("The matrices you are attempting to add do not have the same size. Or they have"
+                                        " been passed in an incompatible orientation.");
         }
     }
+}
+
+Matrix Matrix::operator- (Matrix& rhs) {
+    /* when subtracting two matrices, they must have the same shape. Therefore, we check the shape, and if they are the
+     * same, then we subtract the matrices elementwise. We also check the orientations of each matrix before subtraction.
+     * This insures that we are subtracting the matrices in the way that the user intended.*/
+
+    if (is_transposed){
+        if (rhs.is_transposed and rows() == rhs.rows() and columns() == rhs.columns()){
+            /* both matrices are transposed and are the same size */
+            size_t num_rows = columns(), num_cols = rhs.rows();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[j][i] - rhs[j][i];
+                }
+            }
+            (*this).transpose(); rhs.transpose();  // return matrices back to their regular state (not transposed)
+            return Matrix(result);
+        }
+        else if(not rhs.is_transposed and columns() == rhs.rows() and rows() == rhs.columns()){
+            /* lhs (this) matrix is transposed and rhs is not transposed, in this orientation they are the same size */
+            size_t num_rows = columns(), num_cols = rows();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[j][i] - rhs[i][j];
+                }
+            }
+            (*this).transpose();  // return matrix back to its regular state (not transposed)
+            return Matrix(result);
+        }
+        else {
+            throw std::invalid_argument("The matrices you are attempting to add do not have the same size. Or they have"
+                                        " been passed in an incompatible orientation.");
+        }
+    }
+    else{
+        if (not rhs.is_transposed and rows() == rhs.rows() and columns() == rhs.columns()){
+            /* both matrices are not transposed and are the same size */
+            size_t num_rows = rows(), num_cols = columns();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[i][j] - rhs[i][j];
+                }
+            }
+            return Matrix(result);
+        }
+        else if(rhs.is_transposed and rows() == rhs.columns() and columns() == rhs.rows()){
+            /* the rhs matrix is transposed and the matrices have the same size when in this orientation */
+            size_t num_rows = rows(), num_cols = columns();
+            std::vector<std::vector<double>> result (num_rows, std::vector<double>(num_cols, 0.0));
+            for (size_t i = 0; i < num_rows; ++i){
+                for (size_t j = 0; j < num_cols; ++j){
+                    result[i][j] = matrix_[i][j] - rhs[j][i];
+                }
+            }
+            rhs.transpose();  // return the rhs to its regular state (not transposed)
+            return Matrix(result);
+        }
+        else{
+            throw std::invalid_argument("The matrices you are attempting to add do not have the same size. Or they have"
+                                        " been passed in an incompatible orientation.");
+        }
+    }
+}
+
+void Matrix::transpose() {
+    /* the orientation of a matrix is important. Calling transpose() on a cb::Matrix will (logically) change its
+     * orientation. This function returns void. If you want to use a transposed matrix within an operation, you should
+     * use the cb::Matrix::T() function, which returns the matrix in its new orientation (logically). */
+    (*this).is_transposed = not this->is_transposed;
+}
+
+Matrix& Matrix::T() {
+    /* the orientation of a matrix is important. Calling T() on a cb::Matrix will (logically) change its
+     * orientation. This function should be used within mathematical statements. */
+    (*this).is_transposed = not this->is_transposed;
+    return *this;
+}
+
+
+// -------------------------------------COMPUTER BRAIN VECTOR-----------------------------------------------------------
+
+// Vector class operators
+double Vector::operator[] (size_t index){
+    /* we want our cb::Vector(s) to act like the std::vector, hence we can index the underlying std::vector simply by
+     * using the operator []. */
+    return (*this).vector_[index];
+}
+Vector& Vector::operator= (const Vector& rhs){
+    /* when we assign one cb::Vector to another cb::Vector, we are essentially doing a deep copy we make sure to copy
+     * both representation of the right-hand-side (which is a std::vector) and the orientation of that vector. */
+    (*this).vector_ = rhs.vector_;
+    (*this).is_transposed = rhs.is_transposed;
+    return *this;
+}
+
+void Vector::transpose(){
+    /* the orientation of a vector is important. Calling transpose() on a cb::Vector will (logically) change its
+     * orientation. This function returns void. If you want to use a transposed vector within an operation, you should
+     * use the cb::Vector::T() function, which returns the vector in its new orientation (logically). */
+    (*this).is_transposed = not this->is_transposed;
+}
+
+Vector& Vector::T(){
+    
+    (*this).is_transposed = not this->is_transposed;
+    return *this;
 }
