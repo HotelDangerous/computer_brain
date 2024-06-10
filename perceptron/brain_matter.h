@@ -41,6 +41,7 @@ namespace cb{  // Computer Brain namespace
         friend std::ostream& operator<< (std::ostream &os, const Matrix& self);           // declaration for the ( << ) operator
         friend std::ostream& operator<< (std::ostream &os, const std::variant<double, Matrix>& self);
 
+
     private:
         std::vector<std::vector<double>> matrix_;
     };
@@ -65,10 +66,11 @@ namespace cb{  // Computer Brain namespace
         // Vector Class Operators
         double operator[] (size_t index);
         Vector& operator= (const Vector& rhs);
-        Vector operator+ (Vector& other);                                                  // declaration for the ( + ) operator
-        Vector operator- (Vector& other);                                                  // declaration for the ( - ) operator
-        std::variant<double, Matrix> operator* (Vector other);                              // declaration for the ( * ) operator
-        friend std::ostream& operator << (std::ostream &os, const Vector& self);           // declaration for the ( << ) operator
+        Vector operator+ (Vector& rhs);                                           // declaration for the ( + ) operator
+        Vector operator- (Vector& rhs);                                           // declaration for the ( - ) operator
+        double operator* (Vector& rhs);                                           // declaration for the ( * ) operator
+        Matrix operator^ (Vector& rhs);                                           // declaration for the ( ^ ) operator
+        friend std::ostream& operator << (std::ostream &os, const Vector& self);  // declaration for the ( << ) operator
 
 
     private:

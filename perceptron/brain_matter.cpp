@@ -186,6 +186,89 @@ Vector& Vector::operator= (const Vector& rhs){
     return *this;
 }
 
+Vector Vector::operator+ (Vector& rhs){
+    /* Vector addition. Before the addition takes place, we check that the two cb::Vectors have the same size and
+     * orientation. If not, we throw an error and remind the user that the vectors must have these qualities.  If we
+     * perform the addition, we return the result in the orientation that the input vectors were in. */
+    if ((*this).is_transposed == rhs.is_transposed and size() == rhs.size()){
+        std::vector<double> result((*this).size(), 0.00);
+        for (size_t i = 0; i < (*this).size(); ++i){
+            result[i] = vector_[i] + rhs[i];
+        }
+        if ((*this).is_transposed){
+            (*this).transpose();  // return to regular orientation
+            rhs.transpose();      // return to regular orientation
+            return Vector(result).T();
+        }
+        else{ return Vector(result); }
+    }
+    else{
+        throw std::invalid_argument("The vectors that you are attempting to add (a) are not the same length or (b) do "
+                                    "not have the same orientation.");
+    }
+}
+
+Vector Vector::operator- (Vector& rhs){
+    /* Vector addition. Before the addition takes place, we check that the two cb::Vectors have the same size and
+     * orientation. If not, we throw an error and remind the user that the vectors must have these qualities. If we
+     * perform the subtraction, we return the result in the orientation that the input vectors were in. */
+    if ((*this).is_transposed == rhs.is_transposed and size() == rhs.size()){
+        std::vector<double> result((*this).size(), 0.00);
+        for (size_t i = 0; i < (*this).size(); ++i){
+            result[i] = vector_[i] - rhs[i];
+        }
+
+        if ((*this).is_transposed){
+            (*this).transpose();  // return to regular orientation
+            rhs.transpose();      // return to regular orientation
+            return Vector(result).T();
+        }
+        else{ return Vector(result); }
+    }
+    else{
+        throw std::invalid_argument("The vectors that you are attempting to add (a) are not the same length or (b) do "
+                                    "not have the same orientation.");
+    }
+}
+
+double Vector::operator* (Vector& rhs){
+    /* Compute the dot product. If you wish to compute the outer product, you must use the outer() class function or the
+     * symbol (^) rather than (*). Once again, we check that the vectors have the correct orientation before computing
+     * the dot product and return the input vectors to their standard positions before returning the dot product. */
+    if (!(*this).is_transposed and rhs.is_transposed and size() == rhs.size()){
+        double result = 0.0;
+        for (size_t i = 0; i < (*this).size(); ++i){
+            result += (vector_[i] * rhs[i]);
+        }
+        rhs.transpose();  // return to regular orientation
+        return result;
+    }
+    else{
+        throw std::invalid_argument("The dot product could not be computed because either (a) the vectors were not in"
+                                    "the correct orientation or (b) the vectors are different sizes.");
+    }
+}
+
+Matrix Vector::operator^ (Vector& rhs){
+    /* Compute the outer product. If you wish to compute the dot product, you must use the symbol (*). Once again, we
+     * check that the vectors have the correct orientation before computing the outer product and return the input
+     * vectors to their standard positions before returning the dot product. */
+    if ((*this).is_transposed and !rhs.is_transposed){
+        std::vector<std::vector<double>> result((*this).size(), std::vector(rhs.size(), 0.0));
+        for (size_t i = 0; i < (*this).size(); ++i){
+            for (size_t j = 0; j < rhs.size(); ++j){
+                result[i][j] = vector_[i]*rhs[j];
+            }
+        }
+        (*this).transpose();  // return to regular orientation
+        return Matrix(result);
+    }
+    else{
+        throw std::invalid_argument( "The dot product could not be computed because either the vectors were not in the "
+                                     "correct orientation.");
+    }
+}
+
 void Vector::transpose(){
     /* the orientation of a vector is important. Calling transpose() on a cb::Vector will (logically) change its
      * orientation. This function returns void. If you want to use a transposed vector within an operation, you should
