@@ -1,5 +1,7 @@
+#include <iostream>
 #include <vector>
 #include <stdexcept>
+#include <pthread.h>
 #include "brain_matter.h"
 
 
@@ -20,6 +22,12 @@ Matrix& Matrix::operator= (const Matrix& rhs){
      * this is slow. I want linear algebra with these matrices to work as if you were writing the equations on paper.*/
     matrix_ = rhs.matrix_;
     (*this).is_transposed = rhs.is_transposed;
+    return *this;
+}
+
+Matrix& Matrix::operator= (const std::vector<std::vector<double>>& rhs){
+    Matrix temp_mat(rhs);
+    (*this).matrix_ = temp_mat.matrix_;
     return *this;
 }
 
@@ -155,6 +163,102 @@ Matrix Matrix::operator- (Matrix& rhs) {
     }
 }
 
+Matrix Matrix::operator*(cb::Matrix &rhs){
+    if (is_transposed and !rhs.is_transposed and rows()==rhs.rows()){
+        size_t i, j, k;
+        auto rhs_matrix_ = rhs.matrix_;  // this might be slow?
+        std::vector<std::vector<double>> result(columns(),std::vector<double>(rhs.columns(), 0.0));
+        #pragma omp parallel for private(i,j,k) shared(matrix_, rhs_matrix_, result) // parallelize on the cpu
+        for(i = 0; i < columns(); ++i){
+            for(j = 0; j < rhs.columns(); ++j){
+                for(k = 0; k < rhs.rows(); ++k){
+                    result[i][j] += (matrix_[k][i]*rhs_matrix_[k][j]);
+                }
+            }
+        }
+        return Matrix(result);
+    }
+    else if (!is_transposed and rhs.is_transposed and columns()==rhs.columns()){
+        size_t i, j, k;
+        auto rhs_matrix_ = rhs.matrix_;  // this might be slow?
+        std::vector<std::vector<double>> result(rows(),std::vector<double>(rhs.rows(), 0.0));
+        #pragma omp parallel for private(i,j,k) shared(matrix_, rhs_matrix_, result) // parallelize on the cpu
+        for(i = 0; i < rows(); ++i){
+            for(j = 0; j < rhs.rows(); ++j){
+                for(k = 0; k < rhs.columns(); ++k){
+                    result[i][j] += (matrix_[i][k]*rhs_matrix_[j][k]);
+                }
+            }
+        }
+        return Matrix(result);
+    }
+    else if (!is_transposed and !rhs.is_transposed and columns()==rhs.rows()){
+        size_t i, j, k;
+        auto rhs_matrix_ = rhs.matrix_;  // this might be slow?
+        std::vector<std::vector<double>> result(rows(),std::vector<double>(rhs.columns(), 0.0));
+        #pragma omp parallel for private(i,j,k) shared(matrix_, rhs_matrix_, result) // parallelize on the cpu
+        for(i = 0; i < rows(); ++i){
+            for(j = 0; j < rhs.columns(); ++j){
+                for(k = 0; k < rhs.rows(); ++k){
+                    result[i][j] += (matrix_[i][k]*rhs_matrix_[k][j]);
+                }
+            }
+        }
+        return Matrix(result);
+    }
+    else if(is_transposed and rhs.is_transposed and rows()==rhs.columns()){
+        size_t i, j, k;
+        auto rhs_matrix_ = rhs.matrix_;  // this might be slow?
+        std::vector<std::vector<double>> result(columns(),std::vector<double>(rhs.rows(), 0.0));
+        #pragma omp parallel for private(i,j,k) shared(matrix_, rhs_matrix_, result) // parallelize on the cpu
+        for(i = 0; i < columns(); ++i){
+            for(j = 0; j < rhs.rows(); ++j){
+                for(k = 0; k < rhs.columns(); ++k){
+                    result[i][j] += (matrix_[k][i]*rhs_matrix_[j][k]);
+                }
+            }
+        }
+        return Matrix(result);
+    }
+    else{
+        throw std::invalid_argument("Vector-Matrix multiplication could not be computed because (a) the number of rows "
+                                    "and columns are incompatible. Maybe you meant to transpose one of these matrices?");
+    }
+}
+
+Vector Matrix::operator*(Vector& rhs){
+    if(columns() == rhs.size() and !is_transposed and rhs.is_transposed){
+        size_t i = 0, j;
+        auto rhs_vector_ = rhs.get_representation();
+        std::vector<double> result (rows(), 0.00);
+        #pragma omp parallel for private(i,j) shared(matrix_, rhs_vector_, result) // parallelize on the cpu
+        for(auto& row: matrix_){
+            for (j = 0; j < rhs.size(); ++j){
+                result[i] += (row[j] * rhs[j]);
+            }
+            ++i;
+        }
+        return Vector(result);
+    }
+    else if(rows()==rhs.size() and is_transposed and rhs.is_transposed){
+        size_t i, j;
+        auto rhs_vector_ = rhs.get_representation();
+        std::vector<double> result (columns(), 0.00);
+        #pragma omp parallel for private(i,j) shared(matrix_, rhs_vector_, result) // parallelize on the cpu
+        for(i = 0; i < columns(); ++i){
+            for (j = 0; j < rhs.size(); ++j){
+                result[i] += (matrix_[j][i] * rhs[j]);
+            }
+        }
+        return Vector(result);
+    }
+    else{
+        throw std::invalid_argument("Vector-Matrix multiplication could not be computed because (a) the number of "
+                                    "rows in the matrix is different from the size of the vector or (b) the cb::Vector "
+                                    "is not in the correct orientation.");
+    }
+}
+
 void Matrix::transpose() {
     /* the orientation of a matrix is important. Calling transpose() on a cb::Matrix will (logically) change its
      * orientation. This function returns void. If you want to use a transposed matrix within an operation, you should
@@ -183,6 +287,11 @@ Vector& Vector::operator= (const Vector& rhs){
      * both representation of the right-hand-side (which is a std::vector) and the orientation of that vector. */
     (*this).vector_ = rhs.vector_;
     (*this).is_transposed = rhs.is_transposed;
+    return *this;
+}
+
+Vector& Vector::operator=(const std::vector<double>& rhs){
+    (*this).vector_ = rhs;
     return *this;
 }
 
@@ -280,4 +389,41 @@ Vector& Vector::T(){
     
     (*this).is_transposed = not this->is_transposed;
     return *this;
+}
+
+std::vector<double>& Vector::get_representation() {
+    return (*this).vector_;
+}
+
+std::ostream& operator<<(std::ostream& os, cb::Vector& other){
+    os << '[' << ' ';
+    for (auto const &element : other){
+        os << element << ' ';
+    }
+    os << ']';
+    if (other.is_transposed)
+        os << ".T";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, cb::Matrix& other) {
+    os << "[[";
+    for (size_t i = 0; i < other.rows(); ++i) {
+        if (i != 0)
+            os << "[ ";
+        for (size_t j = 0; j < other.columns(); ++j) {
+            if (j != other.columns() - 1) {
+                os << other[i][j] << " ";
+            } else {
+                if (i == other.rows() - 1) {
+                    os << other[i][j] << "]]\n";
+                } else {
+                    os << other[i][j] << " ]\n";
+                }
+            }
+        }
+    }
+    if(other.is_transposed)
+        os << ".T";
+    return os;
 }
