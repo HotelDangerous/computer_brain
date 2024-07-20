@@ -48,7 +48,8 @@ private:
 public:
     /* Constructors and Destructor */
     // TODO: Rule of 5
-    explicit Matrix(std::vector<Vector<U>> mat) : repr(std::move(mat)) { }  // TODO: Write definition out of class
+    explicit Matrix(const std::vector<Vector<U>>& mat);
+    Matrix(size_t num_rows, size_t num_cols);
 
 
     /* Member Variables */
@@ -63,6 +64,10 @@ public:
 
     /* Non-Mathematical Operations */
     U& operator[](const size_t& i);
+
+    /* Mathematical Operations */
+    Matrix operator+(const Matrix& other);
+    Matrix operator-(const Matrix& other);
 };
 
 
@@ -120,7 +125,8 @@ Vector<T>& Vector<T>::operator=(Vector<T>&& other) noexcept{
 template<typename T>
 Vector<T>::Vector(std::vector<T> vec) : repr(std::move(vec)) { }
 
-/* Member Functions */
+/* Vector Member Functions */
+
 /// Vector.size() returns the number of elements that the vector contains.
 template<typename T>
 size_t Vector<T>::size(){ return repr.size(); }
@@ -151,6 +157,7 @@ template<typename T>
 void Vector<T>::t(){ is_transposed = !is_transposed; }
 
 /* Non-Mathematical Operation */
+
 /// Indexing a Vector is similar to indexing a std::vector.
 template <typename T>
 T& Vector<T>::operator[](const size_t& i) { return repr[i]; }
@@ -225,8 +232,8 @@ Vector<T> Vector<T>::operator-(Vector<T>& other){
         return result;
     }
     else{  // else: throw an error
-        throw std::invalid_argument("Either: (a) The vectors you attempted to add have different orientation\n"
-                                    "        (b) The Vectors you attempted to add have different sizes\n"
+        throw std::invalid_argument("Either: (a) The vectors you attempted to subtract have different orientation\n"
+                                    "        (b) The Vectors you attempted to subtract have different sizes\n"
                                     "        (c) Both\n"
         );
     }
@@ -234,6 +241,35 @@ Vector<T> Vector<T>::operator-(Vector<T>& other){
 
 
 /* ----------------------------------------- Matrix Class Definitions ----------------------------------------------- */
+
+/* Constructors and destructor */
+/**
+ * @brief Value Constructor: Takes an std::vector<Vector<U>> and returns a Matrix<U> with the same elements.
+ *
+ * This value constructor takes one parameter: @param mat a std::vector<Vector<U>>, a standard vector full of Vectors
+ * with elements of type U. This is useful when we want to transform a vector into a Matrix or when we want to define
+ * a Matrix with particular values.
+ *
+ * @tparam U should be a numerical type
+ */
+template <typename U>
+Matrix<U>::Matrix(const std::vector<Vector<U>>& mat) : repr(std::move(mat)) { }
+
+/**
+ * @brief Value constructor. Takes two integer values and returns a Matrix of zeros.
+ *
+ * This value constructor takes two parameters: @param num_cols, num_rows these parameters are both of type size_t.
+ * Calling this value constructor will return a Matrix full of zeros with num_rows rows and num_cols columns.
+ *
+ * @tparam U should be a numerical type.
+ */
+ template <typename U>
+Matrix<U>::Matrix(size_t num_rows, size_t num_cols){
+    Vector<U> temp_vec(std::vector(num_cols, 0));
+    repr = std::vector(num_rows, temp_vec);
+}
+
+/* Matrix Member Functions */
 
 /// Matrix.rows() returns the number of elements -rows- that the Matrix contains.
 template<typename U>
@@ -288,5 +324,130 @@ void Matrix<U>::t(){ is_transposed = !is_transposed; }
 /// Indexing a Vector is similar to indexing a std::vector.
 template <typename U>
 U& Matrix<U>::operator[](const size_t& i) { return repr[i]; }
+
+/* Mathematical Operations */
+/**
+ * @brief Elementwise addition between two Matrix.
+ *
+ * Given two Matrix the (+) operator performs elementwise addition between matrices. Matrix addition is performed as
+ * learned in linear algebra. If the matrices are both NxM, then addition is legal. If matrices have shape MxN and NxM,
+ * then addition is only legal if one of the matrices is transposed.
+ *
+ * The resulting Matrix will have shape corresponding to the input. If both matrices are, MxN and transposed, then the
+ * result matrix will have shape NxM. Just as you would expect in linear algebra
+ *
+ * @tparam U should be a numerical type
+ * @param other should be a Matrix with compatible dimensions for addition
+ * @return a Matrix<U> with dimension defined by the input
+ */
+template<typename U>
+Matrix<U> Matrix<U>::operator+(const Matrix<U> &other) {
+    // if matrices have the same orientation and dimensions
+    if (is_transposed == other.is_transposed and rows() == other.rows() and columns() == other.columns()){
+        if (!is_transposed) {  // and if the matrices are not transposed
+            Matrix<U> result(rows(), columns());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[i][j] = this[i][j] + other[i][j];
+                }
+            }
+            return result;
+        } else {  // and if the matrices are transposed
+            Matrix<U> result(columns(), rows());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[j][i] = this[i][j] + other[i][j];
+                }
+            }
+            return result;
+        }
+    }
+    // else if the matrices dont have the same orientation, but are compatible for addition in their current orientation
+    else if(rows()==other.columns() and columns() == other.rows()) {
+        if(!is_transposed){  // if this matrix is not transposed
+            Matrix<U> result(rows(), columns());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[i][j] = this[i][j] + other[j][i];
+                }
+            }
+            return result;
+        } else {  // this matrix is transposed
+            Matrix<U> result(columns(), rows());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[j][i] = this[i][j] + other[j][i];
+                }
+            }
+        }
+    }
+    else {  // else the matrices are not compatible for addition
+        throw std::invalid_argument("Either: (a) The matrices you attempted to add have different orientation\n"
+                                    "        (b) The matrices you attempted to add have different sizes\n"
+                                    "        (c) Both\n");
+    }
+}
+
+/**
+ * @brief Elementwise subtraction between two Matrix.
+ *
+ * Given two Matrix the (-) operator performs elementwise subtraction between matrices. Matrix subtraction is performed
+ * as learned in linear algebra. If the matrices are both NxM, then subtraction is legal. If matrices have shape MxN and
+ * NxM, then subtraction is legal only if one of the matrices is transposed.
+ *
+ * The resulting Matrix will have shape corresponding to the input. If both matrices are, MxN and transposed, then the
+ * result matrix will have shape NxM. Just as you would expect in linear algebra
+ *
+ * @tparam U should be a numerical type
+ * @param other should be a Matrix with compatible dimensions for subtraction
+ * @return a Matrix<U> with dimension defined by the input
+ */
+template<typename U>
+Matrix<U> Matrix<U>::operator-(const Matrix<U> &other) {
+    // if matrices have the same orientation and dimensions
+    if (is_transposed == other.is_transposed and rows() == other.rows() and columns() == other.columns()){
+        if (!is_transposed) {  // and if the matrices are not transposed
+            Matrix<U> result(rows(), columns());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[i][j] = this[i][j] - other[i][j];
+                }
+            }
+            return result;
+        } else {  // and if the matrices are transposed
+            Matrix<U> result(columns(), rows());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[j][i] = this[i][j] - other[i][j];
+                }
+            }
+            return result;
+        }
+    }
+        // else if the matrices dont have the same orientation, but are compatible for addition in their current orientation
+    else if(rows()==other.columns() and columns() == other.rows()) {
+        if(!is_transposed){  // if this matrix is not transposed
+            Matrix<U> result(rows(), columns());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[i][j] = this[i][j] - other[j][i];
+                }
+            }
+            return result;
+        } else {  // this matrix is transposed
+            Matrix<U> result(columns(), rows());
+            for (size_t i; i < rows(); ++i) {
+                for (size_t j; j < columns(); ++j) {
+                    result[j][i] = this[i][j] - other[j][i];
+                }
+            }
+        }
+    }
+    else {  // else the matrices are not compatible for addition
+        throw std::invalid_argument("Either: (a) The matrices you attempted to subtract have different orientation\n"
+                                    "        (b) The matrices you attempted to subtract have different sizes\n"
+                                    "        (c) Both\n");
+    }
+}
 
 #endif //COMPUTER_BRAIN2_LINEAR_ALGEBRA_H
