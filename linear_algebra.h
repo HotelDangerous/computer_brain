@@ -47,9 +47,13 @@ private:
     std::vector<Vector<U>> repr;  // representation is a std::vector of computer_brain Vectors
 public:
     /* Constructors and Destructor */
-    // TODO: Rule of 5
-    explicit Matrix(const std::vector<Vector<U>>& mat);
-    Matrix(size_t num_rows, size_t num_cols);
+    ~Matrix();                                           // destructor
+    Matrix(const Matrix& other);                         // copy constructor
+    Matrix& operator=(const Matrix& other);              // copy assignment operator
+    Matrix(Matrix&& other) noexcept;                     // move constructor
+    Matrix& operator=(Matrix && other) noexcept;         // move assignment operator
+    explicit Matrix(const std::vector<Vector<U>>& mat);  // value constructor (vector)
+    Matrix(size_t num_rows, size_t num_cols);            // value constructor (two ints)
 
 
     /* Member Variables */
@@ -242,7 +246,53 @@ Vector<T> Vector<T>::operator-(Vector<T>& other){
 
 /* ----------------------------------------- Matrix Class Definitions ----------------------------------------------- */
 
-/* Constructors and destructor */
+/* Constructors and Destructor */
+/// Matrix Destructor is just the default constructor.
+template<typename U>
+Matrix<U>::~Matrix() = default;  // classic destructor
+
+/**
+ * Copy assignment: Used to make a new object by copying an existing object. Copy constructor is used when we pass
+ * an object by value or when we make a copy explicitly. Most commonly used to replicate an existing item.
+ *
+ * Deep copy of another Matrix.
+ */
+template<typename U>
+Matrix<U>::Matrix(const Matrix& other){
+    repr = other.repr;
+    is_transposed = other.is_transposed;
+}
+
+/**
+ * Copy assignment operator: Assigns data from one object to another object. Used when the assignment operator = is
+ * between two Matrix objects.
+ */
+template<typename U>
+Matrix<U>& Matrix<U>::operator=(const Matrix &other) {
+    if (this != &other){  // if: this Matrix is not the same vector as other, make a deep copy of other
+        repr = other.repr;
+        is_transposed = other.is_transposed;
+    }
+    return *this;
+}
+
+/// Move constructor: Transfers the ownership of resources from one Matrix to another.
+template<typename U>
+Matrix<U>::Matrix(Matrix&& other) noexcept : repr(std::move(other.repr)), is_transposed(other.is_transposed) { }
+
+/**
+ * Move assignment operator: Used when an existing Matrix is assigned the value of an rvalue. It is activated when
+ * the assignment operator (=) assigns the data of a temporary Vector to an existing Matrix.
+ */
+template<typename U>
+Matrix<U>& Matrix<U>::operator=(Matrix<U>&& other) noexcept{
+    if (this != &other){  // if: this vector and the other are not the same Matrix, transfer resources to this vector
+        repr(std::move(other.repr));
+        is_transposed = other.is_transposed;
+    }
+    return *this;
+}
+
 /**
  * @brief Value Constructor: Takes an std::vector<Vector<U>> and returns a Matrix<U> with the same elements.
  *
