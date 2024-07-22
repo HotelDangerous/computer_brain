@@ -19,6 +19,7 @@ public:
     Vector& operator=(const Vector& other);         // copy assignment operator
     Vector(Vector&& other) noexcept;                // move constructor
     Vector& operator=(Vector && other) noexcept;    // move assignment operator
+    Vector(int num_elements, T element);
     explicit Vector(std::vector<T> vec);
 
     /* Member Variables */
@@ -28,14 +29,16 @@ public:
     size_t size();
     auto begin();
     auto end();
-    void t();
+    void transpose();
+    Vector<T>& t();
 
     /* Non-Mathematical Operations */
     T& operator[](const size_t& i);
 
     /* Mathematical Operations */
-    Vector operator+(Vector<T>& other);
-    Vector operator-(Vector<T>& other);
+    Vector operator+(Vector& other);
+    Vector operator-(Vector& other);
+    T operator*(Vector& other);  // dot product
 };
 
 
@@ -125,6 +128,13 @@ Vector<T>& Vector<T>::operator=(Vector<T>&& other) noexcept{
     return *this;
 }
 
+/// Create a computer_brain Vector by passing an integer and an element to be repeated.
+template<typename T>
+Vector<T>::Vector(int num_elements, T element){
+    std::vector temp_vec(num_elements, element);
+    repr = temp_vec;
+}
+
 /// Create a computer_brain Vector by passing the constructor an std::vector.
 template<typename T>
 Vector<T>::Vector(std::vector<T> vec) : repr(std::move(vec)) { }
@@ -150,15 +160,33 @@ template<typename T>
 auto Vector<T>::end(){ return repr.end(); }
 
 /**
- * @brief Vector.t() changes the orientation of the Vector from not transposed to transposed, or vice-versa.
+ * @brief Vector.tronspose() changes the orientation of the Vector from not transposed to transposed, or vice-versa.
+ * And returns void.
  *
  * In linear algebra, the orientation of a Vector is very important. The function t() allows us to transpose the
  * vector when writing a mathematical statement. It is crucial to note that a Vector will NOT remain transposed
  * after any mathematical operation. Importantly, when the value of is_transposed is false (such as at
- * instantiation), the Vector is -conceptually- a row vector.
+ * instantiation), the Vector is -conceptually- a column vector.
  */
 template<typename T>
-void Vector<T>::t(){ is_transposed = !is_transposed; }
+void Vector<T>::transpose(){
+
+}
+
+/**
+ * @brief Vector.t() changes the orientation of the Vector from not transposed to transposed, or vice-versa. And returns
+ * the Vector in a transposed state.
+ *
+ * In linear algebra, the orientation of a Vector is very important. The function t() allows us to transpose the
+ * vector when writing a mathematical statement. It is crucial to note that a Vector will NOT remain transposed
+ * after any mathematical operation. Importantly, when the value of is_transposed is false (such as at
+ * instantiation), the Vector is -conceptually- a column vector.
+ */
+template<typename T>
+Vector<T>& Vector<T>::t(){
+    is_transposed = !is_transposed;
+    return *this;
+}
 
 /* Non-Mathematical Operation */
 
@@ -173,7 +201,7 @@ T& Vector<T>::operator[](const size_t& i) { return repr[i]; }
  * equal to the sum of the elements i in each of the Vectors; for all i.
  */
 template<typename T>
-Vector<T> Vector<T>::operator+(Vector<T>& other){
+Vector<T> Vector<T>::operator+(Vector& other){
     if (is_transposed == other.is_transposed && size() == other.size()) { // if: vectors have the same orientation and size
         std::vector<T> result_repr(repr.size(), 0);
         Vector<T> result(result_repr);
@@ -198,7 +226,7 @@ Vector<T> Vector<T>::operator+(Vector<T>& other){
         return result;
     }
     else{  // else: throw an error
-        throw std::invalid_argument("Either: (a) The vectors you attempted to add have different orientation\n"
+        throw std::invalid_argument("\nEither: (a) The vectors you attempted to add have different orientation\n"
                                     "        (b) The Vectors you attempted to add have different sizes\n"
                                     "        (c) Both\n"
         );
@@ -211,7 +239,7 @@ Vector<T> Vector<T>::operator+(Vector<T>& other){
  * element i is equal to the difference of the elements i in each of the Vectors; for all i.
  */
 template<typename T>
-Vector<T> Vector<T>::operator-(Vector<T>& other){
+Vector<T> Vector<T>::operator-(Vector& other){
     if (is_transposed == other.is_transposed && size() == other.size()) { // if: vectors have the same orientation and size
         std::vector<T> result_repr(repr.size(), 0);
         Vector<T> result(result_repr);
@@ -236,8 +264,24 @@ Vector<T> Vector<T>::operator-(Vector<T>& other){
         return result;
     }
     else{  // else: throw an error
-        throw std::invalid_argument("Either: (a) The vectors you attempted to subtract have different orientation\n"
+        throw std::invalid_argument("\nEither: (a) The vectors you attempted to subtract have different orientation\n"
                                     "        (b) The Vectors you attempted to subtract have different sizes\n"
+                                    "        (c) Both\n"
+        );
+    }
+}
+
+template <typename T>
+T Vector<T>::operator*(Vector& other){
+    if(is_transposed && !other.is_transposed && (size() == other.size())) {
+        T sum = 0;
+        for (int i = 0; i < size(); ++i) {
+            sum += (repr[i] + other[i]);
+        }
+        return sum;
+    } else {
+        throw std::invalid_argument("\nEither: (a) The dot product cannot be computed due to incompatible orientation of vectors\n"
+                                    "        (b) The dot product cannot be computed due to incompatible vector length\n"
                                     "        (c) Both\n"
         );
     }
@@ -432,7 +476,7 @@ Matrix<U> Matrix<U>::operator+(const Matrix<U> &other) {
         }
     }
     else {  // else the matrices are not compatible for addition
-        throw std::invalid_argument("Either: (a) The matrices you attempted to add have different orientation\n"
+        throw std::invalid_argument("\nEither: (a) The matrices you attempted to add have different orientation\n"
                                     "        (b) The matrices you attempted to add have different sizes\n"
                                     "        (c) Both\n");
     }
@@ -494,7 +538,7 @@ Matrix<U> Matrix<U>::operator-(const Matrix<U> &other) {
         }
     }
     else {  // else the matrices are not compatible for addition
-        throw std::invalid_argument("Either: (a) The matrices you attempted to subtract have different orientation\n"
+        throw std::invalid_argument("\nEither: (a) The matrices you attempted to subtract have different orientation\n"
                                     "        (b) The matrices you attempted to subtract have different sizes\n"
                                     "        (c) Both\n");
     }
