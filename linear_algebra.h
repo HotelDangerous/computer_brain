@@ -38,7 +38,9 @@ public:
     /* Mathematical Operations */
     Vector operator+(Vector& other);
     Vector operator-(Vector& other);
-    T operator*(Vector& other);  // dot product
+    T operator*(Vector& other);         // dot product
+    Vector& operator*(const T& other);  // scalar multiplication with variable
+    Vector& operator*(T&& other);       // scalar multiplication with literal
 };
 
 
@@ -59,6 +61,7 @@ public:
     Matrix(size_t num_rows, size_t num_cols);            // value constructor (two ints)
 
 
+
     /* Member Variables */
     bool is_transposed = false;
 
@@ -75,6 +78,8 @@ public:
     /* Mathematical Operations */
     Matrix operator+(const Matrix& other);
     Matrix operator-(const Matrix& other);
+    Matrix& operator*(const U& other);      // scalar multiplication; with scalar variable
+    Matrix& operator*(U&& other);           // scalar multiplication; with scalar literal
 };
 
 
@@ -122,8 +127,8 @@ Vector<T>::Vector(Vector<T>&& other) noexcept : repr(std::move(other.repr)), is_
 template<typename T>
 Vector<T>& Vector<T>::operator=(Vector<T>&& other) noexcept{
     if (this != &other){  // if: this vector and the other are not the same Vector, transfer resources to this vector
-        repr(std::move(other.repr));
-        is_transposed = other.is_transposed;
+        repr = std::move(other.repr);
+        is_transposed = std::move(other.is_transposed);
     }
     return *this;
 }
@@ -285,6 +290,37 @@ T Vector<T>::operator*(Vector& other){
                                     "        (c) Both\n"
         );
     }
+}
+
+template<typename T>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param other a scalar number held in a variable
+ * @return Vector<T> where T is the same as the vector which we are operating on
+ */
+Vector<T>& Vector<T>::operator*(const T& other){
+    for(size_t i = 0; i < size(); ++i){
+        repr[i] *= other;
+    }
+    return *this;
+}
+
+template <typename T>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param other a scalar literal
+ * @return Vector<T> where T is the same as the vector which we are operating on
+ */
+Vector<T>& Vector<T>::operator*(T&& other){
+    std::cout << other << ' ';
+    for(size_t i = 0; i < size(); ++i){
+        repr[i] *= other;
+    }
+    return *this;
 }
 
 
@@ -542,6 +578,122 @@ Matrix<U> Matrix<U>::operator-(const Matrix<U> &other) {
                                     "        (b) The matrices you attempted to subtract have different sizes\n"
                                     "        (c) Both\n");
     }
+}
+
+template<typename U>
+/**
+ * @brief Multiply each element by a scalar number. In the case of this function, that scalar number is held in a
+ * variable.
+ *
+ * @tparam U a scalar number type (int, float, double, etc..)
+ * @param other a scalar number held in a variable
+ * @return Matrix<U> where U is the same as the vector which we are operating on
+ */
+Matrix<U>& Matrix<U>::operator*(const U &other){
+    for (size_t i = 0; i < rows(); ++i){
+        for (size_t j = 0; j < columns(); ++j){
+            repr[i][j] *= other;
+        }
+    }
+    return *this;
+}
+
+template<typename U>
+/**
+ * Multiply each element by a scalar number. In the case of this function, that scalar number is in the form of a
+ * literal.
+ *
+ * @tparam U a scalar number type (int, float, double, etc..)
+ * @param other a scalar number held in a variable
+ * @return Matrix<U> where U is the same as the vector which we are operating on
+ */
+Matrix<U>& Matrix<U>::operator*(U&& other){
+    for (size_t i = 0; i < rows(); ++i){
+        for (size_t j = 0; j < columns(); ++j){
+            repr[i][j] *= other;
+        }
+    }
+    return *this;
+}
+
+
+/* ------------------------------------------ Non-Member Operators -------------------------------------------------- */
+
+
+template <typename T>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * Because we are multiplying the scalar number on the right, we cannot write a member function of the Vector class to
+ * achieve this. Instead we write a non-member function that tells the (*) operator what to do when it encounters a
+ * Vector to its left and a scalar to its right.
+ *
+ * Because scalar multiplication is commutative, the thing it should do is multiplicate the scalar on the right side of
+ * the Vector. And we have defined this operation already
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param scalar, vec a scalar number and a Vector; respectively
+ * @return Vector<T> where T is the same as the Vector which we are operating on
+ */
+ Vector<T>& operator*(const T& scalar, Vector<T>& vec){
+    return vec * scalar;
+ }
+
+template <typename T>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * Because we are multiplying the scalar number on the right, we cannot write a member function of the Vector class to
+ * achieve this. Instead we write a non-member function that tells the (*) operator what to do when it encounters a
+ * Vector to its left and a scalar to its right.
+ *
+ * Because scalar multiplication is commutative, the thing it should do is multiplicate the scalar on the right side of
+ * the Vector. And we have defined this operation already
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param scalar, vec a scalar number and a Vector; respectively
+ * @return Vector<T> where T is the same as the Vector which we are operating on
+ */
+Vector<T>& operator*(T&& scalar, Vector<T>& vec){
+    return vec * scalar;
+}
+
+template <typename U>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * Because we are multiplying the scalar number on the right, we cannot write a member function of the Matrix class to
+ * achieve this. Instead we write a non-member function that tells the (*) operator what to do when it encounters a
+ * Matrix to its left and a scalar to its right.
+ *
+ * Because scalar multiplication is commutative, the thing it should do is multiplicate the scalar on the right side of
+ * the Matrix. And we have defined this operation already
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param scalar, mat a scalar number and a Matrix; respectively
+ * @return Vector<T> where T is the same as the Matrix which we are operating on
+ */
+Matrix<U>& operator*(const U& scalar, Matrix<U>& mat){
+    return mat * scalar;
+}
+
+template <typename U>
+/**
+ * @brief Multiply each element by a scalar number.
+ *
+ * Because we are multiplying the scalar number on the right, we cannot write a member function of the Matrix class to
+ * achieve this. Instead we write a non-member function that tells the (*) operator what to do when it encounters a
+ * Matrix to its left and a scalar to its right.
+ *
+ * Because scalar multiplication is commutative, the thing it should do is multiplicate the scalar on the right side of
+ * the Matrix. And we have defined this operation already
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param scalar, vec a scalar number and a Matrix; respectively
+ * @return Vector<T> where T is the same as the Matrix which we are operating on
+ */
+Matrix<U>& operator*(U&& scalar, Matrix<U>& mat){
+    return mat * scalar;
 }
 
 #endif //COMPUTER_BRAIN2_LINEAR_ALGEBRA_H
