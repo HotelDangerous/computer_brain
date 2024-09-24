@@ -1,18 +1,20 @@
 #include <iostream>
-#include <vector>
-#include <cassert>
 
-#include "brain_matter.h"
-#include "Perceptron.h"
-
+#include "linear_algebra.h"
 
 int main() {
-    static_assert(std::is_default_constructible_v<cb::Matrix>);
-    static_assert(std::is_destructible_v<cb::Matrix>);
-    static_assert(!std::is_copy_constructible_v<cb::Matrix>);  // matrix and vector are not copy constructible
-    static_assert(std::is_copy_assignable_v<cb::Matrix>);
-    static_assert(std::is_move_constructible_v<cb::Matrix>);
-    static_assert(std::is_move_assignable_v<cb::Matrix>);
-    static_assert(!std::has_virtual_destructor_v<cb::Matrix>);
+    Vector<double> rows(10, 12);
+    std::vector proto_mat(12, rows);
+    Matrix<double> matrix(proto_mat);
+
+
+    double x = 12.0;
+
+    Matrix<u_long> mat_1(2, 3);
+    Matrix<double> mat_2(3, 2);
+
+    std::cout << matrix << '\n';
+    std::cout << mat_1 << '\n';
+    std::cout << mat_2;
     return 0;
 }
