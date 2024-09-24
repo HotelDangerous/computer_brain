@@ -1,8 +1,8 @@
 //
 // Created by keenan on 7/17/24.
 //
-#ifndef COMPUTER_BRAIN2_LINEAR_ALGEBRA_H
-#define COMPUTER_BRAIN2_LINEAR_ALGEBRA_H
+#ifndef COMPUTER_BRAIN_LINEAR_ALGEBRA_H
+#define COMPUTER_BRAIN_LINEAR_ALGEBRA_H
 
 #include <vector>
 #include <stdexcept>
@@ -41,6 +41,8 @@ public:
     T operator*(Vector& other);         // dot product
     Vector& operator*(const T& other);  // scalar multiplication with variable
     Vector& operator*(T&& other);       // scalar multiplication with literal
+    Vector& operator/(const T& other);  // scalar division by a variable
+    Vector& operator/(T&& other);       // scalar division by a literal
 };
 
 
@@ -57,8 +59,8 @@ public:
     Matrix& operator=(const Matrix& other);              // copy assignment operator
     Matrix(Matrix&& other) noexcept;                     // move constructor
     Matrix& operator=(Matrix && other) noexcept;         // move assignment operator
-    explicit Matrix(const std::vector<Vector<U>>& mat);  // value constructor (vector)
-    Matrix(size_t num_rows, size_t num_cols);            // value constructor (two ints)
+    explicit Matrix(const std::vector<Vector<U>>& mat);  // value constructor: takes a std::vector<Vector>
+    Matrix(size_t num_rows, size_t num_cols);            // value constructor: takes two ints
 
 
 
@@ -71,9 +73,10 @@ public:
     auto begin();
     auto end();
     void t();
+    Vector<U>& get_column(size_t col_num);
 
     /* Non-Mathematical Operations */
-    U& operator[](const size_t& i);
+    Vector<U>& operator[](const size_t& i);
 
     /* Mathematical Operations */
     Matrix operator+(const Matrix& other);
@@ -316,15 +319,45 @@ template <typename T>
  * @return Vector<T> where T is the same as the vector which we are operating on
  */
 Vector<T>& Vector<T>::operator*(T&& other){
-    std::cout << other << ' ';
     for(size_t i = 0; i < size(); ++i){
         repr[i] *= other;
     }
     return *this;
 }
 
+template<typename T>
+/**
+ * @brief Divide each element by a scalar number.
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param other a scalar number held in a variable
+ * @return Vector<T> where T is the same as the vector which we are operating on
+ */
+Vector<T>& Vector<T>::operator/(const T& other){
+    for(size_t i = 0; i < size(); ++i){
+        repr[i] /= other;
+    }
+    return *this;
+}
+
+template <typename T>
+/**
+ * @brief Divide each element by a scalar number.
+ *
+ * @tparam T a scalar number type (int, float, double, etc..)
+ * @param other a scalar literal
+ * @return Vector<T> where T is the same as the vector which we are operating on
+ */
+Vector<T>& Vector<T>::operator/(T&& other){
+    for(size_t i = 0; i < size(); ++i){
+        repr[i] /= other;
+    }
+    return *this;
+}
+
 
 /* ----------------------------------------- Matrix Class Definitions ----------------------------------------------- */
+
 
 /* Constructors and Destructor */
 /// Matrix Destructor is just the default constructor.
@@ -395,7 +428,7 @@ Matrix<U>::Matrix(const std::vector<Vector<U>>& mat) : repr(std::move(mat)) { }
  */
  template <typename U>
 Matrix<U>::Matrix(size_t num_rows, size_t num_cols){
-    Vector<U> temp_vec(std::vector(num_cols, 0));
+    Vector<U> temp_vec(std::vector(num_cols, (U)0));  // (U) here means cast the 0 to whatever type U is
     repr = std::vector(num_rows, temp_vec);
 }
 
@@ -453,7 +486,7 @@ void Matrix<U>::t(){ is_transposed = !is_transposed; }
 /* Non-Mathematical Operation */
 /// Indexing a Vector is similar to indexing a std::vector.
 template <typename U>
-U& Matrix<U>::operator[](const size_t& i) { return repr[i]; }
+Vector<U>& Matrix<U>::operator[](const size_t& i) { return repr[i]; }
 
 /* Mathematical Operations */
 /**
@@ -617,7 +650,7 @@ Matrix<U>& Matrix<U>::operator*(U&& other){
 }
 
 
-/* ------------------------------------------ Non-Member Operators -------------------------------------------------- */
+/* --------------------------------------- Non-Member Vector Operators ---------------------------------------------- */
 
 
 template <typename T>
@@ -660,6 +693,38 @@ Vector<T>& operator*(T&& scalar, Vector<T>& vec){
 
 template <typename U>
 /**
+ * @brief Outer product of two vectors.
+ *
+ * The outer product of two vectors is the computed when we are multiplying a column vector to the left of a row vector,
+ * where both vectors have the same size. The result will be a Matrix with as many rows as the column vector and (the
+ * vector on the left) and as many columns as the row vector (the vector on the left).
+ *
+ * @tparam U
+ * @param left_vector
+ * @param right_vector
+ * @return a matrix with elements of type <U>
+ */
+Matrix<U>& operator*(Vector<U>& left_vector, Vector<U>& right_vector){
+    if(left_vector.is_transposed && !right_vector.is_transposed && (left_vector.size() == right_vector.size())) {
+        Matrix<U> result(left_vector.size(), right_vector.size());
+        for (size_t j = 0; j < right_vector.size(); ++j) {
+            result[j] = right_vector[j] * left_vector;  // each row of the matrix is
+        }
+        return result;
+    } else {
+        throw std::invalid_argument("\nEither: (a) The outer product cannot be computed due to incompatible orientation of vectors\n"
+                                    "          (b) The outer product cannot be computed due to incompatible vector length\n"
+                                    "          (c) Both\n"
+        );
+    }
+}
+
+
+/* --------------------------------------- Non-Member Matrix Operators ---------------------------------------------- */
+
+
+template <typename U>
+/**
  * @brief Multiply each element by a scalar number.
  *
  * Because we are multiplying the scalar number on the right, we cannot write a member function of the Matrix class to
@@ -696,4 +761,81 @@ Matrix<U>& operator*(U&& scalar, Matrix<U>& mat){
     return mat * scalar;
 }
 
-#endif //COMPUTER_BRAIN2_LINEAR_ALGEBRA_H
+template <typename U>
+Matrix<U>& operator*(const Matrix<U>& right_mat, const Matrix<U>& left_mat){
+    // if neither matrix is transposed
+    if (right_mat.is_transposed == left_mat.is_transposed) {
+        if (right_mat.columns() == left_mat.rows()) {
+            Matrix<U> result(right_mat.rows(), left_mat.columns());
+            for (size_t i = 0; i < right_mat.rows(); ++i) {
+                for (size_t j = 0; j < left_mat.columns(); ++j) {
+                    result[i][j] += right_mat[i][j] * left_mat[j][i];
+                }
+            }
+            return result;
+        }
+    }
+    // if onlf left matrix is transposed
+    else if(!right_mat.is_transposed == false and right_mat.is_transposed != left_mat.is_transposed){
+        if (right_mat.columns() == left_mat.columns()){
+            Matrix<U> result(right_mat.rows(), left_mat.rows());
+            for (size_t i = 0; i < right_mat.rows(); ++i) {
+                for (size_t j = 0; j < left_mat.columns(); ++j) {
+                    result[i][j] += right_mat[i][j] * left_mat[i][j];
+                }
+            }
+            return result;
+        }
+    }
+    else {
+        throw std::invalid_argument("The Matrix product cannot be computed due to incompatible Matrix Dimensions\n");
+    }
+}
+
+/* -------------------------------PRINT INSTRUCTIONS FOR VECTOR AND MATRIX------------------------------------------- */
+
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, Vector<T>& other){
+    /* How to print a vector. Essentially, we print it normally and then add a ".T" to indicate that the printed vector
+     * is in a transposed state.*/
+    os << '[' << ' ';
+    for (auto const &element : other){
+        os << element << ' ';
+    }
+    os << ']';
+    if (other.is_transposed)
+        os << ".T";
+    return os;
+}
+
+template<typename U>
+std::ostream& operator<<(std::ostream& os, Matrix<U>& other) {
+    /* how to print a 2D matrix. It's a little ugly looking, but I wanted the matrices to print as a perfect square
+     * where the first row of the matrix is preceded by a '[' and the last row concluded by an additional ']'.
+     * This meant all other rows would have to be padded with a space. Hence, all the logic.*/
+    os << "[[";
+    for (size_t i = 0; i < other.rows(); ++i) {
+        if (i != 0){
+            os << "[ ";
+        }
+        for (size_t j = 0; j < other.columns(); ++j) {
+            if (j != other.columns() - 1) {
+                os << other[i][j] << " ";
+            } else {
+                if (i == other.rows() - 1) {
+                    os << other[i][j] << "]]\n";
+                } else {
+                    os << other[i][j] << " ]\n";
+                }
+            }
+        }
+    }
+    if(other.is_transposed) {
+        os << ".T";
+    }
+    return os;
+}
+
+
+#endif //COMPUTER_BRAIN_LINEAR_ALGEBRA_H
