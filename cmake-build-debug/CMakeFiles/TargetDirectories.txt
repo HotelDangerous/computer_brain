@@ -1,0 +1,3 @@
+/home/keenan/computer_brain/cmake-build-debug/CMakeFiles/computer_brain.dir
+/home/keenan/computer_brain/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/keenan/computer_brain/cmake-build-debug/CMakeFiles/rebuild_cache.dir
